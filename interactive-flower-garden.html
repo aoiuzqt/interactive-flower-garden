@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Growing Pink Lily Garden</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let W, H;
+
+
+// ======================================================
+// RESIZE
+// ======================================================
+
+function resize() {
+
+    W = canvas.width =
+        window.innerWidth;
+
+    H = canvas.height =
+        window.innerHeight;
+}
+
+resize();
+
+
+// ======================================================
+// HELPERS
+// ======================================================
+
+function random(min, max) {
+    return Math.random() *
+        (max - min) +
+        min;
+}
+
+function clamp(value, min, max) {
+    return Math.max(
+        min,
+        Math.min(max, value)
+    );
+}
+
+function easeOut(t) {
+    return 1 -
+        Math.pow(1 - t, 3);
+}
+
+function easeInOut(t) {
+
+    return t < 0.5
+
+        ? 4 * t * t * t
+
+        : 1 -
+          Math.pow(
+              -2 * t + 2,
+              3
+          ) / 2;
+}
+
+
+// ======================================================
+// LILY
+// ======================================================
+
+class Lily {
+
+    constructor(
+        x,
+        ground,
+        size,
+        delay,
+        angle
+    ) {
+
+        this.x = x;
+
+        this.ground =
+            ground;
+
+        this.size =
+            size;
+
+        this.delay =
+            delay;
+
+        this.angle =
+            angle;
+
+
+        // Growth values
+
+        this.stem = 0;
+        this.bud = 0;
+        this.open = 0;
+        this.stamen = 0;
+
+
+        this.finished =
+            false;
+
+
+        // Interaction
+
+        this.interacting =
+            false;
+
+        this.interactionStart =
+            0;
+
+        this.interactionDuration =
+            4200;
+
+        this.interactionOpen =
+            1;
+
+
+        this.petals = [];
+        this.stamens = [];
+
+
+        this.createPetals();
+
+        this.createStamens();
+    }
+
+
+    // ==================================================
+    // CREATE PETALS
+    // ==================================================
+
+    createPetals() {
+
+        for (
+            let i = 0;
+            i < 6;
+            i++
+        ) {
+
+            const angle =
+                -Math.PI / 2 +
+                i * Math.PI / 3;
+
+
+            this.petals.push({
+
+                angle: angle,
+
+                length:
+                    this.size *
+                    random(
+                        0.82,
+                        1.05
+                    ),
+
+                width:
+                    this.size *
+                    random(
+                        0.30,
+                        0.43
+                    ),
+
+                curl:
+                    random(
+                        -0.15,
+                        0.15
+                    ),
+
+                delay:
+                    i *
+                    random(
+                        0.035,
+                        0.09
+                    )
+            });
+        }
+    }
+
+
+    // ==================================================
+    // CREATE STAMENS
+    // ==================================================
+
+    createStamens() {
+
+        for (
+            let i = 0;
+            i < 6;
+            i++
+        ) {
+
+            this.stamens.push({
+
+                angle:
+                    -Math.PI / 2 +
+                    i * Math.PI / 3 +
+                    random(
+                        -0.18,
+                        0.18
+                    ),
+
+                length:
+                    this.size *
+                    random(
+                        0.75,
+                        1.15
+                    ),
+
+                bend:
+                    random(
+                        -0.35,
+                        0.35
+                    ),
+
+                delay:
+                    random(
+                        0,
+                        0.3
+                    )
+            });
+        }
+    }
+
+
+    // ==================================================
+    // INTERACTION
+    // ==================================================
+
+    interact() {
+
+        if (
+            this.interacting
+        ) {
+            return;
+        }
+
+
+        this.interacting =
+            true;
+
+
+        this.interactionStart =
+            performance.now();
+
+
+        // Remember current opening
+        this.interactionOpen =
+            Math.max(
+                this.open,
+                0.85
+            );
+    }
+
+
+    // ==================================================
+    // UPDATE
+    // ==================================================
+
+    update(time) {
+
+
+        // ==================================================
+        // INTERACTION MODE
+        // ==================================================
+
+        if (
+            this.interacting
+        ) {
+
+            const elapsed =
+                performance.now() -
+                this.interactionStart;
+
+
+            const duration =
+                this.interactionDuration;
+
+
+            const progress =
+                clamp(
+                    elapsed /
+                    duration,
+                    0,
+                    1
+                );
+
+
+            // ----------------------------------------------
+            // CLOSE
+            // ----------------------------------------------
+
+            if (
+                progress < 0.43
+            ) {
+
+                const closeProgress =
+                    progress / 0.43;
+
+
+                const smooth =
+                    easeInOut(
+                        closeProgress
+                    );
+
+
+                this.open =
+                    this.interactionOpen *
+                    (
+                        1 -
+                        smooth
+                    );
+
+
+                // Never completely vanish
+                this.open =
+                    Math.max(
+                        this.open,
+                        0.045
+                    );
+            }
+
+
+            // ----------------------------------------------
+            // STAY CLOSED
+            // ----------------------------------------------
+
+            else if (
+                progress < 0.64
+            ) {
+
+                this.open =
+                    0.045;
+            }
+
+
+            // ----------------------------------------------
+            // OPEN AGAIN
+            // ----------------------------------------------
+
+            else {
+
+                const openProgress =
+                    (
+                        progress -
+                        0.64
+                    ) / 0.36;
+
+
+                const smooth =
+                    easeInOut(
+                        openProgress
+                    );
+
+
+                this.open =
+                    0.045 +
+                    (
+                        this.interactionOpen -
+                        0.045
+                    ) *
+                    smooth;
+            }
+
+
+            // ----------------------------------------------
+            // FINISHED
+            // ----------------------------------------------
+
+            if (
+                progress >= 1
+            ) {
+
+                this.open =
+                    this.interactionOpen;
+
+
+                this.interacting =
+                    false;
+
+                this.finished =
+                    true;
+            }
+
+
+            return;
+        }
+
+
+        // ==================================================
+        // NORMAL GROWTH
+        // ==================================================
+
+        if (
+            time < this.delay
+        ) {
+            return;
+        }
+
+
+        let t =
+            (
+                time -
+                this.delay
+            ) / 5200;
+
+
+        t =
+            clamp(
+                t,
+                0,
+                1
+            );
+
+
+        // ----------------------------------------------
+        // STEM
+        // ----------------------------------------------
+
+        const stemPhase =
+            clamp(
+                t / 0.38,
+                0,
+                1
+            );
+
+
+        this.stem =
+            easeInOut(
+                stemPhase
+            );
+
+
+        // ----------------------------------------------
+        // BUD
+        // ----------------------------------------------
+
+        const budPhase =
+            clamp(
+                (t - 0.28) / 0.18,
+                0,
+                1
+            );
+
+
+        this.bud =
+            easeOut(
+                budPhase
+            );
+
+
+        // ----------------------------------------------
+        // FLOWER OPENING
+        // ----------------------------------------------
+
+        const flowerPhase =
+            clamp(
+                (t - 0.42) / 0.38,
+                0,
+                1
+            );
+
+
+        this.open =
+            easeInOut(
+                flowerPhase
+            );
+
+
+        // ----------------------------------------------
+        // STAMENS
+        // ----------------------------------------------
+
+        const stamenPhase =
+            clamp(
+                (t - 0.67) / 0.25,
+                0,
+                1
+            );
+
+
+        this.stamen =
+            easeOut(
+                stamenPhase
+            );
+
+
+        if (
+            t >= 1
+        ) {
+
+            this.finished =
+                true;
+        }
+    }
+
+
+    // ==================================================
+    // STEM
+    // ==================================================
+
+    drawStem(time) {
+
+        if (
+            this.stem <= 0
+        ) {
+            return;
+        }
+
+
+        const fullHeight =
+            this.size * 4.3;
+
+
+        const height =
+            fullHeight *
+            this.stem;
+
+
+        const bottomX =
+            this.x;
+
+
+        const bottomY =
+            this.ground;
+
+
+        const curve =
+            Math.sin(
+                this.angle
+            ) * 30;
+
+
+        const topX =
+            this.x +
+            curve;
+
+
+        const topY =
+            this.ground -
+            height;
+
+
+        // Stem glow
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            bottomX,
+            bottomY
+        );
+
+
+        ctx.quadraticCurveTo(
+            this.x +
+            curve * 0.3,
+
+            bottomY -
+            height * 0.55,
+
+            topX,
+            topY
+        );
+
+
+        ctx.strokeStyle =
+            "rgba(120,150,25,0.15)";
+
+
+        ctx.lineWidth =
+            13;
+
+
+        ctx.stroke();
+
+
+        // Stem
+
+        const gradient =
+            ctx.createLinearGradient(
+                0,
+                bottomY,
+                0,
+                topY
+            );
+
+
+        gradient.addColorStop(
+            0,
+            "#253b0b"
+        );
+
+        gradient.addColorStop(
+            0.4,
+            "#5e7c16"
+        );
+
+        gradient.addColorStop(
+            0.8,
+            "#829b23"
+        );
+
+        gradient.addColorStop(
+            1,
+            "#a6ae36"
+        );
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            bottomX,
+            bottomY
+        );
+
+
+        ctx.quadraticCurveTo(
+            this.x +
+            curve * 0.3,
+
+            bottomY -
+            height * 0.55,
+
+            topX,
+            topY
+        );
+
+
+        ctx.strokeStyle =
+            gradient;
+
+
+        ctx.lineWidth =
+            6;
+
+
+        ctx.lineCap =
+            "round";
+
+
+        ctx.stroke();
+
+
+        // Highlight
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            bottomX - 1,
+            bottomY
+        );
+
+
+        ctx.quadraticCurveTo(
+            this.x +
+            curve * 0.3 -
+            2,
+
+            bottomY -
+            height * 0.55,
+
+            topX - 1,
+            topY
+        );
+
+
+        ctx.strokeStyle =
+            "rgba(210,225,90,0.45)";
+
+
+        ctx.lineWidth =
+            1.4;
+
+
+        ctx.stroke();
+
+
+        // Leaves
+
+        if (
+            this.stem > 0.55
+        ) {
+
+            const leafProgress =
+                clamp(
+                    (
+                        this.stem -
+                        0.55
+                    ) / 0.45,
+
+                    0,
+                    1
+                );
+
+
+            this.drawLeaf(
+                this.x,
+                this.ground -
+                height * 0.42,
+
+                -1,
+
+                leafProgress
+            );
+
+
+            this.drawLeaf(
+                this.x,
+                this.ground -
+                height * 0.58,
+
+                1,
+
+                leafProgress
+            );
+        }
+    }
+
+
+    // ==================================================
+    // LEAF
+    // ==================================================
+
+    drawLeaf(
+        x,
+        y,
+        direction,
+        progress
+    ) {
+
+        ctx.save();
+
+
+        ctx.translate(
+            x,
+            y
+        );
+
+
+        ctx.rotate(
+            direction *
+            0.65
+        );
+
+
+        ctx.scale(
+            progress,
+            progress
+        );
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            0
+        );
+
+
+        ctx.bezierCurveTo(
+            30 * direction,
+            -42,
+
+            68 * direction,
+            -34,
+
+            82 * direction,
+            -10
+        );
+
+
+        ctx.bezierCurveTo(
+            55 * direction,
+            3,
+
+            24 * direction,
+            10,
+
+            0,
+            0
+        );
+
+
+        const gradient =
+            ctx.createLinearGradient(
+                0,
+                0,
+                80 * direction,
+                0
+            );
+
+
+        gradient.addColorStop(
+            0,
+            "#718b1c"
+        );
+
+        gradient.addColorStop(
+            0.6,
+            "#365710"
+        );
+
+        gradient.addColorStop(
+            1,
+            "#172d09"
+        );
+
+
+        ctx.fillStyle =
+            gradient;
+
+
+        ctx.fill();
+
+
+        // Vein
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            0
+        );
+
+
+        ctx.quadraticCurveTo(
+            40 * direction,
+            -18,
+
+            76 * direction,
+            -12
+        );
+
+
+        ctx.strokeStyle =
+            "rgba(160,180,65,0.45)";
+
+
+        ctx.lineWidth =
+            1;
+
+
+        ctx.stroke();
+
+
+        ctx.restore();
+    }
+
+
+    // ==================================================
+    // BUD
+    // ==================================================
+
+    drawBud() {
+
+        if (
+            this.bud <= 0 ||
+            this.open > 0.08
+        ) {
+            return;
+        }
+
+
+        const flowerX =
+            this.x +
+            Math.sin(
+                this.angle
+            ) * 30;
+
+
+        const flowerY =
+            this.ground -
+            this.size * 4.3;
+
+
+        ctx.save();
+
+
+        ctx.translate(
+            flowerX,
+            flowerY
+        );
+
+
+        ctx.rotate(
+            this.angle
+        );
+
+
+        // When interacting,
+        // bud grows as petals close
+
+        const closeAmount =
+            1 -
+            this.open;
+
+
+        const budScale =
+            this.interacting
+
+                ? 0.25 +
+                  closeAmount *
+                  0.75
+
+                : 0.15 +
+                  this.bud *
+                  0.85;
+
+
+        ctx.scale(
+            budScale,
+            budScale
+        );
+
+
+        const budHeight =
+            this.size *
+            0.75;
+
+
+        ctx.shadowColor =
+            "rgba(255,70,130,0.45)";
+
+
+        ctx.shadowBlur =
+            18;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            0,
+            10
+        );
+
+
+        ctx.bezierCurveTo(
+            -this.size * 0.22,
+            -budHeight * 0.25,
+
+            -this.size * 0.18,
+            -budHeight * 0.85,
+
+            0,
+            -budHeight
+        );
+
+
+        ctx.bezierCurveTo(
+            this.size * 0.18,
+            -budHeight * 0.85,
+
+            this.size * 0.22,
+            -budHeight * 0.25,
+
+            0,
+            10
+        );
+
+
+        const budGradient =
+            ctx.createLinearGradient(
+                0,
+                0,
+                0,
+                -budHeight
+            );
+
+
+        budGradient.addColorStop(
+            0,
+            "#d85c7c"
+        );
+
+        budGradient.addColorStop(
+            0.5,
+            "#ef8eaa"
+        );
+
+        budGradient.addColorStop(
+            1,
+            "#ffd0dc"
+        );
+
+
+        ctx.fillStyle =
+            budGradient;
+
+
+        ctx.fill();
+
+
+        ctx.shadowBlur =
+            0;
+
+
+        ctx.restore();
+    }
+
+
+    // ==================================================
+    // FLOWER
+    // ==================================================
+
+    drawFlower(time) {
+
+        if (
+            this.open <= 0
+        ) {
+            return;
+        }
+
+
+        const flowerX =
+            this.x +
+            Math.sin(
+                this.angle
+            ) * 30;
+
+
+        const flowerY =
+            this.ground -
+            this.size * 4.3;
+
+
+        ctx.save();
+
+
+        ctx.translate(
+            flowerX,
+            flowerY
+        );
+
+
+        ctx.rotate(
+            this.angle
+        );
+
+
+        // Gentle natural movement
+
+        let sway = 0;
+
+
+        if (
+            this.finished &&
+            !this.interacting
+        ) {
+
+            sway =
+                Math.sin(
+                    time * 0.0007
+                ) *
+                0.012;
+        }
+
+
+        ctx.rotate(
+            sway
+        );
+
+
+        // Overall flower size
+
+        const scale =
+            0.15 +
+            this.open *
+            0.85;
+
+
+        ctx.scale(
+            scale,
+            scale
+        );
+
+
+        // ==================================================
+        // GLOW
+        // ==================================================
+
+        const glow =
+            ctx.createRadialGradient(
+                0,
+                0,
+                0,
+
+                0,
+                0,
+                this.size *
+                1.35
+            );
+
+
+        glow.addColorStop(
+            0,
+            "rgba(255,100,160,0.18)"
+        );
+
+
+        glow.addColorStop(
+            0.5,
+            "rgba(255,50,120,0.07)"
+        );
+
+
+        glow.addColorStop(
+            1,
+            "rgba(0,0,0,0)"
+        );
+
+
+        ctx.fillStyle =
+            glow;
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            0,
+            0,
+            this.size *
+            1.35,
+
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fill();
+
+
+        // ==================================================
+        // PETALS
+        // ==================================================
+
+        for (
+            let i = 0;
+            i < this.petals.length;
+            i++
+        ) {
+
+            const p =
+                this.petals[i];
+
+
+            const petalOpen =
+                clamp(
+                    (
+                        this.open -
+                        p.delay * 0.5
+                    ) / 0.8,
+
+                    0,
+                    1
+                );
+
+
+            if (
+                petalOpen <= 0
+            ) {
+                continue;
+            }
+
+
+            ctx.save();
+
+
+            ctx.rotate(
+                p.angle
+            );
+
+
+            const L =
+                p.length *
+                petalOpen;
+
+
+            const w =
+                p.width *
+                (
+                    0.2 +
+                    petalOpen *
+                    0.8
+                );
+
+
+            const curl =
+                p.curl *
+                this.size *
+                petalOpen;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                0,
+                0
+            );
+
+
+            // Left side
+
+            ctx.bezierCurveTo(
+                -w * 0.15,
+                -L * 0.20,
+
+                -w * 0.95,
+                -L * 0.55,
+
+                curl,
+                -L
+            );
+
+
+            // Outer edge
+
+            ctx.bezierCurveTo(
+                w * 0.60,
+                -L * 1.02,
+
+                w * 1.05,
+                -L * 0.78,
+
+                w * 0.82,
+                -L * 0.55
+            );
+
+
+            // Right side
+
+            ctx.bezierCurveTo(
+                w * 0.68,
+                -L * 0.35,
+
+                w * 0.35,
+                -L * 0.12,
+
+                0,
+                0
+            );
+
+
+            // ==================================================
+            // PETAL GRADIENT
+            // ==================================================
+
+            const gradient =
+                ctx.createLinearGradient(
+                    0,
+                    0,
+                    0,
+                    -L
+                );
+
+
+            gradient.addColorStop(
+                0,
+                "#fff4f3"
+            );
+
+
+            gradient.addColorStop(
+                0.18,
+                "#ffd0dc"
+            );
+
+
+            gradient.addColorStop(
+                0.45,
+                "#f58da9"
+            );
+
+
+            gradient.addColorStop(
+                0.72,
+                "#df547d"
+            );
+
+
+            gradient.addColorStop(
+                1,
+                "#a93260"
+            );
+
+
+            ctx.fillStyle =
+                gradient;
+
+
+            ctx.fill();
+
+
+            // Edge
+
+            ctx.strokeStyle =
+                "rgba(255,215,225,0.75)";
+
+
+            ctx.lineWidth =
+                1.8;
+
+
+            ctx.stroke();
+
+
+            // Main vein
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                0,
+                -4
+            );
+
+
+            ctx.bezierCurveTo(
+                0,
+                -L * 0.28,
+
+                curl,
+                -L * 0.68,
+
+                curl,
+                -L * 0.94
+            );
+
+
+            ctx.strokeStyle =
+                "rgba(155,35,75,0.48)";
+
+
+            ctx.lineWidth =
+                2.3;
+
+
+            ctx.stroke();
+
+
+            // Secondary veins
+
+            for (
+                let v = 0;
+                v < 3;
+                v++
+            ) {
+
+                const vy =
+                    -L *
+                    (
+                        0.38 +
+                        v * 0.14
+                    );
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    0,
+                    vy
+                );
+
+
+                ctx.quadraticCurveTo(
+                    -w * 0.35,
+                    vy - 8,
+
+                    -w * 0.62,
+                    vy - 20
+                );
+
+
+                ctx.strokeStyle =
+                    "rgba(190,55,90,0.25)";
+
+
+                ctx.lineWidth =
+                    1;
+
+
+                ctx.stroke();
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    0,
+                    vy
+                );
+
+
+                ctx.quadraticCurveTo(
+                    w * 0.35,
+                    vy - 8,
+
+                    w * 0.62,
+                    vy - 20
+                );
+
+
+                ctx.strokeStyle =
+                    "rgba(190,55,90,0.25)";
+
+
+                ctx.lineWidth =
+                    1;
+
+
+                ctx.stroke();
+            }
+
+
+            ctx.restore();
+        }
+
+
+        // ==================================================
+        // SPECKLES
+        // ==================================================
+
+        for (
+            let i = 0;
+            i < 75;
+            i++
+        ) {
+
+            const p =
+                this.petals[
+                    i % 6
+                ];
+
+
+            const angle =
+                p.angle;
+
+
+            const distance =
+                0.18 +
+                (
+                    (i * 37) % 45
+                ) / 100;
+
+
+            const side =
+                (
+                    (
+                        (i * 17) % 100
+                    ) / 100
+                ) -
+                0.5;
+
+
+            const L =
+                p.length *
+                this.open;
+
+
+            const w =
+                p.width *
+                this.open;
+
+
+            ctx.save();
+
+
+            ctx.rotate(
+                angle
+            );
+
+
+            const x =
+                side *
+                w *
+                0.75 *
+                distance;
+
+
+            const y =
+                -L *
+                distance;
+
+
+            if (
+                distance <
+                0.62
+            ) {
+
+                ctx.beginPath();
+
+
+                ctx.arc(
+                    x,
+                    y,
+
+                    1.2 +
+                    (i % 3) *
+                    0.5,
+
+                    0,
+                    Math.PI * 2
+                );
+
+
+                ctx.fillStyle =
+                    "rgba(115,25,65,0.55)";
+
+
+                ctx.fill();
+            }
+
+
+            ctx.restore();
+        }
+
+
+        // ==================================================
+        // STAMENS
+        // ==================================================
+
+        // Stamens also retract naturally
+        // as the flower closes.
+
+        const stamenVisibility =
+            clamp(
+                (
+                    this.open -
+                    0.18
+                ) / 0.82,
+
+                0,
+                1
+            );
+
+
+        for (
+            const s of this.stamens
+        ) {
+
+            const progress =
+                clamp(
+                    (
+                        this.stamen -
+                        s.delay
+                    ) / 0.7,
+
+                    0,
+                    1
+                ) *
+                stamenVisibility;
+
+
+            if (
+                progress <= 0
+            ) {
+                continue;
+            }
+
+
+            ctx.save();
+
+
+            ctx.rotate(
+                s.angle
+            );
+
+
+            const L =
+                s.length *
+                progress;
+
+
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                0,
+                0
+            );
+
+
+            ctx.bezierCurveTo(
+                L * 0.15,
+                -L * 0.12,
+
+                L * 0.55,
+                s.bend,
+
+                L,
+                -L * 0.08
+            );
+
+
+            ctx.strokeStyle =
+                "#68412d";
+
+
+            ctx.lineWidth =
+                2;
+
+
+            ctx.lineCap =
+                "round";
+
+
+            ctx.stroke();
+
+
+            // Anther
+
+            ctx.beginPath();
+
+
+            ctx.ellipse(
+                L,
+                -L * 0.08,
+
+                4.5,
+                7,
+
+                -0.35,
+
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.fillStyle =
+                "#492317";
+
+
+            ctx.fill();
+
+
+            ctx.restore();
+        }
+
+
+        // ==================================================
+        // CENTER
+        // ==================================================
+
+        const center =
+            ctx.createRadialGradient(
+                0,
+                0,
+                1,
+
+                0,
+                0,
+                this.size *
+                0.18
+            );
+
+
+        center.addColorStop(
+            0,
+            "#f2f2b0"
+        );
+
+
+        center.addColorStop(
+            0.5,
+            "#bdca66"
+        );
+
+
+        center.addColorStop(
+            1,
+            "#657b27"
+        );
+
+
+        // Center becomes smaller
+        // as petals close
+
+        const centerSize =
+            this.size *
+            (
+                0.04 +
+                this.open *
+                0.09
+            );
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+            0,
+            0,
+            centerSize,
+
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fillStyle =
+            center;
+
+
+        ctx.fill();
+
+
+        ctx.restore();
+    }
+
+
+    // ==================================================
+    // DRAW
+    // ==================================================
+
+    draw(time) {
+
+        // Stem NEVER disappears during interaction
+
+        this.drawStem(time);
+
+
+        // Bud only appears naturally
+        // when flower is mostly closed
+
+        this.drawBud();
+
+
+        // Petals
+
+        this.drawFlower(time);
+    }
+}
+
+
+// ======================================================
+// BACKGROUND
+// ======================================================
+
+function drawBackground() {
+
+    ctx.fillStyle =
+        "#000";
+
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    const glow =
+        ctx.createRadialGradient(
+            W * 0.45,
+            H * 0.35,
+            0,
+
+            W * 0.45,
+            H * 0.35,
+            H * 0.75
+        );
+
+
+    glow.addColorStop(
+        0,
+        "rgba(100,0,35,0.08)"
+    );
+
+
+    glow.addColorStop(
+        1,
+        "rgba(0,0,0,0)"
+    );
+
+
+    ctx.fillStyle =
+        glow;
+
+
+    ctx.fillRect(
+        0,
+        0,
+        W,
+        H
+    );
+}
+
+
+// ======================================================
+// STATIC GRASS
+// ======================================================
+
+function drawGrass() {
+
+    const baseY =
+        H * 0.995;
+
+
+    const bladeCount =
+        Math.max(
+            110,
+            Math.floor(W / 6)
+        );
+
+
+    ctx.save();
+
+
+    ctx.lineCap =
+        "round";
+
+
+    // Ground
+
+    const ground =
+        ctx.createLinearGradient(
+            0,
+            baseY - H * 0.07,
+            0,
+            H
+        );
+
+
+    ground.addColorStop(
+        0,
+        "rgba(35,60,12,0.08)"
+    );
+
+
+    ground.addColorStop(
+        1,
+        "rgba(5,15,4,0.72)"
+    );
+
+
+    ctx.fillStyle =
+        ground;
+
+
+    ctx.fillRect(
+        0,
+        baseY -
+        H * 0.055,
+
+        W,
+        H * 0.055
+    );
+
+
+    // Fixed grass
+
+    for (
+        let i = 0;
+        i < bladeCount;
+        i++
+    ) {
+
+        const x =
+            (
+                i /
+                bladeCount
+            ) *
+            W;
+
+
+        const height =
+            H *
+            (
+                0.025 +
+                (
+                    (i * 17) %
+                    50
+                ) / 1000
+            );
+
+
+        const lean =
+            H *
+            (
+                (
+                    (
+                        (i * 31) %
+                        100
+                    ) / 100
+                ) -
+                0.5
+            ) *
+            0.035;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            x,
+            baseY
+        );
+
+
+        ctx.quadraticCurveTo(
+            x +
+            lean * 0.45,
+
+            baseY -
+            height * 0.55,
+
+            x +
+            lean,
+
+            baseY -
+            height
+        );
+
+
+        ctx.strokeStyle =
+            `rgba(
+                ${35 + (i % 35)},
+                ${65 + (i % 45)},
+                ${12 + (i % 18)},
+                0.75
+            )`;
+
+
+        ctx.lineWidth =
+            1.5 +
+            (i % 3) *
+            0.4;
+
+
+        ctx.stroke();
+    }
+
+
+    ctx.restore();
+}
+
+
+// ======================================================
+// CREATE FLOWERS
+// ======================================================
+
+let lilies = [];
+
+
+function createLilies() {
+
+    lilies = [
+
+        new Lily(
+            W * 0.10,
+            H * 1.08,
+            Math.min(W, H) *
+            0.095,
+            0,
+            -0.16
+        ),
+
+
+        new Lily(
+            W * 0.23,
+            H * 1.08,
+            Math.min(W, H) *
+            0.125,
+            450,
+            0.12
+        ),
+
+
+        new Lily(
+            W * 0.37,
+            H * 1.08,
+            Math.min(W, H) *
+            0.155,
+            800,
+            -0.10
+        ),
+
+
+        new Lily(
+            W * 0.50,
+            H * 1.08,
+            Math.min(W, H) *
+            0.105,
+            1200,
+            0.20
+        ),
+
+
+        new Lily(
+            W * 0.63,
+            H * 1.08,
+            Math.min(W, H) *
+            0.145,
+            1550,
+            -0.18
+        ),
+
+
+        new Lily(
+            W * 0.76,
+            H * 1.08,
+            Math.min(W, H) *
+            0.115,
+            1950,
+            0.14
+        ),
+
+
+        new Lily(
+            W * 0.89,
+            H * 1.08,
+            Math.min(W, H) *
+            0.090,
+            2300,
+            -0.12
+        ),
+
+
+        new Lily(
+            W * 0.54,
+            H * 1.08,
+            Math.min(W, H) *
+            0.080,
+            2700,
+            0.28
+        )
+    ];
+}
+
+
+// ======================================================
+// CLICK / TOUCH DETECTION
+// ======================================================
+
+function interactWithFlower(
+    clientX,
+    clientY
+) {
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+
+    const x =
+        (
+            clientX -
+            rect.left
+        ) *
+        (
+            canvas.width /
+            rect.width
+        );
+
+
+    const y =
+        (
+            clientY -
+            rect.top
+        ) *
+        (
+            canvas.height /
+            rect.height
+        );
+
+
+    for (
+        const lily of lilies
+    ) {
+
+        const flowerX =
+            lily.x +
+            Math.sin(
+                lily.angle
+            ) *
+            30;
+
+
+        const flowerY =
+            lily.ground -
+            lily.size *
+            4.3;
+
+
+        const distance =
+            Math.sqrt(
+                Math.pow(
+                    x -
+                    flowerX,
+                    2
+                ) +
+
+                Math.pow(
+                    y -
+                    flowerY,
+                    2
+                )
+            );
+
+
+        // Larger hit area makes
+        // mobile interaction easier
+
+        const hitRadius =
+            lily.size *
+            1.5;
+
+
+        if (
+            distance <
+            hitRadius
+        ) {
+
+            lily.interact();
+
+            break;
+        }
+    }
+}
+
+
+// ======================================================
+// MOUSE
+// ======================================================
+
+canvas.addEventListener(
+    "click",
+    function(event) {
+
+        interactWithFlower(
+            event.clientX,
+            event.clientY
+        );
+    }
+);
+
+
+// ======================================================
+// TOUCH
+// ======================================================
+
+canvas.addEventListener(
+    "touchstart",
+    function(event) {
+
+        const touch =
+            event.touches[0];
+
+
+        interactWithFlower(
+            touch.clientX,
+            touch.clientY
+        );
+
+    },
+    {
+        passive: true
+    }
+);
+
+
+// ======================================================
+// MAIN ANIMATION
+// ======================================================
+
+createLilies();
+
+
+let startTime =
+    performance.now();
+
+
+function animate(now) {
+
+    const time =
+        now -
+        startTime;
+
+
+    ctx.clearRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    drawBackground();
+
+
+    // Flowers
+
+    for (
+        const lily of lilies
+    ) {
+
+        lily.update(time);
+
+        lily.draw(time);
+    }
+
+
+    // Static grass
+
+    drawGrass();
+
+
+    requestAnimationFrame(
+        animate
+    );
+}
+
+
+requestAnimationFrame(
+    animate
+);
+
+
+// ======================================================
+// RESIZE
+// ======================================================
+
+window.addEventListener(
+    "resize",
+    function() {
+
+        resize();
+
+        createLilies();
+
+        startTime =
+            performance.now();
+    }
+);
+
+</script>
+
+</body>
+</html>
